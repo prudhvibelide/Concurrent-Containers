@@ -1,81 +1,61 @@
-```markdown
-# Concurrent Containers - Final Project
-Author: Prudhvi Raj Belide
+````markdown
+# Concurrent Containers – Final Project
+
+**Author:** Prudhvi Raj Belide
 
 ## Overview
 
-This project implements and tests seven concurrent data structures in C++17:
+This project implements and evaluates seven concurrent data structures in **C++17**, focusing on correctness, scalability, and performance under contention.
 
-**Stacks:**
-- SGL Stack (single global lock with std::mutex)
+The following data structures are implemented and tested.
+
+**Stacks**
+- SGL Stack (single global lock using `std::mutex`)
 - Treiber Stack (lock-free using atomic CAS)
-- Elimination Stack (Treiber + elimination array)
-- Flat Combining Stack (combiner thread pattern)
+- Elimination Stack (Treiber stack with elimination array)
+- Flat Combining Stack (combiner-thread pattern)
 
-**Queues:**
+**Queues**
 - SGL Queue (single global lock)
-- Michael & Scott Queue (lock-free with head/tail pointers)
-- Flat Combining Queue (combiner thread pattern)
+- Michael & Scott Queue (lock-free queue with atomic head and tail)
+- Flat Combining Queue (combiner-thread pattern)
 
-**Extra Credit:**
-- Condition variable without spurious wakeups using epoch counter
-- Bounded queue implementation using the condition variable
+**Extra Credit**
+- Condition variable implementation without spurious wakeups using an epoch counter
+- Bounded queue built using the custom condition variable
 
-All code uses C++17 standard library with std::atomic, std::mutex, and std::thread.
+All implementations use the C++17 standard library, including `std::atomic`, `std::mutex`, `std::thread`, and `std::condition_variable`.
 
 ---
 
 ## Code Organization
 
-**containers.h**
-- Declarations for all container classes
-- Shared constants (MAX_THREADS, ELIM_SIZE, etc.)
+**containers.h**  
+Contains declarations for all container classes and shared constants such as `MAX_THREADS` and `ELIM_SIZE`.
 
-**sgl_stack.cpp & sgl_queue.cpp**
-- Simple mutex-based implementations
-- Use std::lock_guard for automatic locking/unlocking
-- Wrap std::stack and std::queue from STL
+**sgl_stack.cpp / sgl_queue.cpp**  
+Mutex-based implementations using a single global lock. These wrap `std::stack` and `std::queue` from the STL and use `std::lock_guard` for safe locking.
 
-**treiber_stack.cpp**
-- Lock-free stack from Treiber's 1986 algorithm
-- Single atomic pointer (top)
-- Uses compare_exchange_weak in retry loops
-- Memory leak: nodes are not deleted (no safe reclamation)
+**treiber_stack.cpp**  
+Lock-free stack based on Treiber’s 1986 algorithm. It uses a single atomic pointer for the top and relies on `compare_exchange_weak` in retry loops. Nodes are not reclaimed, resulting in a memory leak due to the lack of safe memory reclamation.
 
-**msqueue.cpp**
-- Lock-free FIFO queue from Michael & Scott 1996 paper
-- Two atomic pointers: head (dequeue) and tail (enqueue)
-- Dummy node simplifies empty queue handling
-- Helping mechanism: threads help advance tail if lagging
-- Memory leak: old head nodes not deleted
+**msqueue.cpp**  
+Lock-free FIFO queue based on the Michael & Scott 1996 algorithm. It uses two atomic pointers (`head` and `tail`) and a dummy node to simplify empty queue handling. Threads help advance the tail pointer when it lags behind. Old nodes are not deleted, leading to memory leaks.
 
-**elimination_stack.cpp**
-- Treiber stack with 8-slot elimination array
-- Threads try to pair up push/pop operations before touching stack
-- Random slot selection to reduce contention
-- Falls back to Treiber if no match found
+**elimination_stack.cpp**  
+Extends the Treiber stack with an 8-slot elimination array. Threads attempt to pair push and pop operations in the elimination array before accessing the shared stack. Random slot selection is used to reduce contention, with fallback to Treiber behavior if no match is found.
 
-**fc_stack.cpp & fc_queue.cpp**
-- Flat combining approach with 32 per-thread slots
-- Threads post operation requests in slots
-- One thread becomes combiner and executes all pending operations
-- Uses mutex with try_lock
+**fc_stack.cpp / fc_queue.cpp**  
+Flat combining implementations using 32 per-thread slots. Threads publish operation requests, and one thread becomes the combiner to execute all pending operations. A mutex with `try_lock` is used to elect the combiner.
 
-**condvar.cpp**
-- condvar_no_spurious wrapper around std::condition_variable
-- Uses epoch counter that increments on every signal/broadcast
-- wait() only exits when epoch changes (no spurious wakeups)
-- bounded_queue: fixed-size circular buffer with two condition variables
+**condvar.cpp**  
+Implements `condvar_no_spurious`, a wrapper around `std::condition_variable` that avoids spurious wakeups using an epoch counter. The `wait()` function only returns when the epoch changes. Also includes a bounded queue implemented as a fixed-size circular buffer using two condition variables.
 
-**main.cpp**
-- Unit tests for correctness
-- Throughput benchmarks at 1, 2, 4, 8, 16 threads
-- Contention test (all threads start simultaneously)
-- Command-line interface for different test modes
+**main.cpp**  
+Contains unit tests for correctness, throughput benchmarks at 1, 2, 4, 8, and 16 threads, a contention test where all threads start simultaneously, and a command-line interface to select test modes.
 
-**Makefile**
-- Compiles all source files with -std=c++17 -pthread -O2 -Wall
-- Creates test_containers executable
+**Makefile**  
+Builds all source files using `-std=c++17 -pthread -O2 -Wall` and produces the `test_containers` executable.
 
 ---
 
@@ -84,9 +64,9 @@ All code uses C++17 standard library with std::atomic, std::mutex, and std::thre
 ```bash
 make clean
 make
-```
+````
 
-Requires GCC 7+ or Clang 5+ with C++17 support and pthread library.
+Requires GCC 7+ or Clang 5+ with C++17 support and the pthread library.
 Tested on Ubuntu 24.04.
 
 ---
@@ -94,191 +74,151 @@ Tested on Ubuntu 24.04.
 ## Execution Instructions
 
 ### Run all tests
+
 ```bash
 ./test_containers
 ```
 
 ### Run benchmarks
+
 ```bash
-./test_containers -bench                 # All benchmarks
-./test_containers -bench-treiber         # Treiber only
-./test_containers -bench-msqueue         # M&S Queue only
-perf stat ./test_containers -bench       # For perf data
+./test_containers -bench
+./test_containers -bench-treiber
+./test_containers -bench-msqueue
+perf stat ./test_containers -bench
 ```
 
 ### Other modes
+
 ```bash
-./test_containers -contention            # Contention test
-./test_containers -h                     # Help
+./test_containers -contention
+./test_containers -h
 ```
 
 ---
 
 ## Experimental Results
 
-### Stack Throughput (ops/sec)
+### Stack Throughput (operations per second)
 
 | Threads | SGL Stack | Treiber | Elimination | FC Stack |
-|---------|-----------|---------|-------------|----------|
-| 1       | 63.0M     | 38.1M   | 22.1M       | 25.2M    |
-| 2       | 13.8M     | 32.2M   | 11.8M       | 11.2M    |
-| 4       | 14.2M     | 17.0M   | 7.6M        | 7.1M     |
-| 8       | 10.0M     | 11.7M   | 5.8M        | 7.3M     |
-| 16      | 8.7M      | 10.3M   | 5.5M        | 7.0M     |
+| ------: | --------: | ------: | ----------: | -------: |
+|       1 |     63.0M |   38.1M |       22.1M |    25.2M |
+|       2 |     13.8M |   32.2M |       11.8M |    11.2M |
+|       4 |     14.2M |   17.0M |        7.6M |     7.1M |
+|       8 |     10.0M |   11.7M |        5.8M |     7.3M |
+|      16 |      8.7M |   10.3M |        5.5M |     7.0M |
 
-**Observations:**
-- At 1 thread: SGL wins (no contention, simple mutex faster than atomic overhead)
-- At 2+ threads: Treiber consistently outperforms others
-- Elimination performs poorly across all thread counts
-- FC sits between SGL and Treiber at higher thread counts
+**Observations**
 
-### Queue Throughput (ops/sec)
-
-| Threads | SGL Queue | M&S Queue | FC Queue |
-|---------|-----------|-----------|----------|
-| 1       | 23.0M     | 24.0M     | 10.5M    |
-| 2       | 18.7M     | 21.0M     | 12.8M    |
-| 4       | 15.2M     | 13.3M     | 7.9M     |
-| 8       | 7.1M      | 8.1M      | 7.7M     |
-| 16      | 8.4M      | 6.5M      | 6.4M     |
-
-**Observations:**
-- M&S wins at low thread counts (1-2, 8)
-- SGL wins at 4 and 16 threads (unexpected but repeatable)
-- FC always slowest (overhead of slot scanning)
-- Performance flattens out at high thread counts for all implementations
-
-### Contention Test
-8 threads doing 40,000 operations (5000 each) completed in 3.8 milliseconds when all released simultaneously. This shows the Treiber stack handles sudden bursts of concurrent operations reasonably well.
+At one thread, the SGL stack performs best because there is no contention and mutex overhead is minimal compared to atomic operations. With two or more threads, the Treiber stack consistently outperforms the others. The elimination stack performs poorly at all thread counts, while the flat combining stack sits between SGL and Treiber at higher thread counts.
 
 ---
 
-## Performance Analysis Using perf
+### Queue Throughput (operations per second)
 
-I used Linux perf to understand where time is being spent in the lock-free implementations.
+| Threads | SGL Queue | M&S Queue | FC Queue |
+| ------: | --------: | --------: | -------: |
+|       1 |     23.0M |     24.0M |    10.5M |
+|       2 |     18.7M |     21.0M |    12.8M |
+|       4 |     15.2M |     13.3M |     7.9M |
+|       8 |      7.1M |      8.1M |     7.7M |
+|      16 |      8.4M |      6.5M |     6.4M |
 
-### M&S Queue Analysis
+**Observations**
+
+The M&S queue performs best at low thread counts and again at 8 threads. The SGL queue unexpectedly wins at 4 and 16 threads, a result that was repeatable. Flat combining is consistently the slowest due to slot scanning overhead. Performance for all implementations flattens at high thread counts.
+
+---
+
+### Contention Test
+
+Eight threads performing 40,000 total operations (5,000 per thread) completed in **3.8 milliseconds** when all threads were released simultaneously. This demonstrates that the Treiber stack handles sudden bursts of contention reasonably well.
+
+---
+
+## Performance Analysis Using `perf`
+
+Linux `perf` was used to analyze where time is spent in the lock-free implementations.
+
+### Michael & Scott Queue
 
 Command:
+
 ```bash
 perf stat -d ./test_containers -bench-msqueue
 ```
 
 Key metrics:
-- **Task clock:** 3729 ms
-- **CPUs utilized:** 9.7 out of 16 (good parallelism)
-- **Context switches:** 124 (very low - proof of lock-free design)
-- **Instructions per cycle:** 0.50 (low - CPU is stalling)
-- **Backend bound:** 69.8% (CPU waiting on memory most of the time)
-- **L1 cache miss rate:** 1.64%
-- **Page faults:** 11,707 (memory allocations for new nodes)
 
-**What this means:**
-The M&S queue achieves good parallelism (using ~10 cores) and almost never blocks threads (only 124 context switches for millions of operations). However, the CPU spends 70% of its time waiting for memory rather than doing computation. This is because atomic operations on head and tail cause cache lines to bounce between cores. The 0.50 instructions per cycle confirms the CPU is mostly stalled waiting for memory, not busy computing. The high page faults show memory allocation overhead from creating nodes (which leak because we don't delete them).
+* Task clock: 3729 ms
+* CPUs utilized: 9.7 out of 16
+* Context switches: 124
+* Instructions per cycle: 0.50
+* Backend bound: 69.8%
+* L1 cache miss rate: 1.64%
+* Page faults: 11,707
 
-### Treiber Stack Analysis
+**Analysis**
+
+The M&S queue achieves good parallelism and very low context switching, confirming its lock-free nature. However, the CPU spends most of its time stalled waiting for memory due to cache line bouncing on atomic head and tail pointers. The low IPC confirms this memory-bound behavior. Page faults are caused by frequent node allocations, which leak due to missing reclamation.
+
+---
+
+### Treiber Stack
 
 Command:
+
 ```bash
 perf stat -d ./test_containers -bench-treiber
 ```
 
 Key metrics:
-- **CPUs utilized:** 6.8
-- **Context switches:** 83 (extremely low)
-- **Instructions per cycle:** 0.24 (worse than M&S)
-- **Backend bound:** 86.7% (worse than M&S!)
-- **L1 cache miss rate:** 2.14%
 
-**What this means:**
-Treiber stack has even worse memory bottleneck than M&S queue. The CPU spends 87% of time waiting for memory. This makes sense because every thread is hammering the same top pointer with CAS operations. The single shared atomic pointer creates more cache coherency traffic than M&S's two-pointer design in some scenarios. Despite this, Treiber still outperforms SGL in benchmarks because it allows parallel attempts rather than serializing through a mutex.
+* CPUs utilized: 6.8
+* Context switches: 83
+* Instructions per cycle: 0.24
+* Backend bound: 86.7%
+* L1 cache miss rate: 2.14%
 
-### Why Elimination Performed Poorly
+**Analysis**
 
-The elimination stack was supposed to reduce contention by letting push/pop pairs cancel in the elimination array. However, it performed worse than plain Treiber across all thread counts. 
-
-Likely reasons:
-1. Random slot selection causes misses (threads pick different slots)
-2. Overhead of checking 8 array slots outweighs benefit
-3. My workload has equal push/pop but they don't arrive simultaneously
-4. The elimination array itself creates additional cache misses
-
-In this benchmark, the elimination optimization made things worse rather than better.
-
-### Why FC Didn't Win
-
-Flat combining should win when:
-- Many operations arrive simultaneously (combiner batches them)
-- Lock overhead is amortized across many operations
-
-But in my benchmark:
-- Operations are very fast (just push/pop with no work)
-- Scanning 32 slots is expensive
-- Combiner usually finds only 2-3 pending operations
-- Overhead of slot management > benefit of batching
-
-FC would likely perform better with:
-- Slower operations (so scanning overhead is smaller percentage)
-- More threads all hitting at exact same time
-- Operations that benefit from sequential execution (cache locality)
+The Treiber stack is even more memory-bound than the M&S queue. All threads contend on a single atomic top pointer, causing heavy cache coherency traffic. Despite this, Treiber still outperforms mutex-based stacks because it allows parallel progress rather than serializing access.
 
 ---
 
-## Comparison: Lock-Free vs Mutex
+## Why Elimination Performed Poorly
 
-**Lock-Free Advantages:**
-- Very low context switches (83-124 vs thousands for mutex)
-- Good CPU utilization (6-10 cores)
-- No deadlock risk
-- Threads never sleep
-
-**Lock-Free Disadvantages:**
-- High backend_bound (70-87% waiting on memory)
-- Low IPC (0.24-0.50 instructions per cycle)
-- Complex to implement correctly
-- Memory leaks without reclamation scheme
-
-**When SGL (mutex) won:**
-- 1 thread: No contention, mutex overhead is minimal
-- 16 threads on queue: Lock implementation got lucky with scheduling
-
-**When Lock-Free won:**
-- Most scenarios with 2-8 threads
-- Consistent scaling as threads increase
-- Better than elimination and FC alternatives
+The elimination stack was intended to reduce contention by allowing push and pop operations to cancel each other. In practice, it performed worse than the plain Treiber stack for several reasons. Random slot selection often leads to missed pairings, checking multiple slots adds overhead, operations do not arrive simultaneously enough to benefit from elimination, and the elimination array itself introduces additional cache misses.
 
 ---
 
-## Extant Bugs
+## Why Flat Combining Did Not Win
 
-1. **Memory leaks in Treiber and M&S:**
-   - Nodes are deleted directly after pop/dequeue
-   - This is unsafe (other threads might still be reading)
-   - Should use hazard pointers or epoch-based reclamation
-   - For benchmarking with fixed operation counts this is acceptable
-   - Would cause problems in long-running production systems
+Flat combining performs best when many operations arrive at once and individual operations are expensive. In this benchmark, operations are extremely fast, slot scanning is costly, and the combiner typically finds only a few pending operations. The overhead of managing slots outweighs the benefit of batching. Flat combining would likely perform better with slower operations, higher synchronization, or workloads with stronger temporal locality.
 
-2. **Flat combining portability:**
-   - Some slot fields use simple flags instead of atomics
-   - Works correctly on x86 but might have issues on ARM
-   - Should use std::atomic for full correctness
+---
 
-3. **Elimination array tuning:**
-   - Fixed 8 slots and random selection may not be optimal
-   - Could experiment with different sizes and selection strategies
-   - Current implementation shows overhead exceeds benefit
+## Lock-Free vs Mutex-Based Designs
+
+Lock-free implementations show extremely low context switching and good CPU utilization, with no risk of deadlock and no sleeping threads. However, they are heavily memory-bound, exhibit very low IPC, are complex to implement correctly, and require careful memory reclamation to avoid leaks.
+
+Mutex-based SGL implementations perform well with a single thread and occasionally outperform lock-free designs at high thread counts due to favorable scheduling. Lock-free designs dominate most scenarios with moderate thread counts and scale more consistently.
+
+---
+
+## Known Issues
+
+The Treiber stack and M&S queue leak memory because nodes are not safely reclaimed. Deleting nodes immediately after removal is unsafe because other threads may still access them. Proper solutions include hazard pointers or epoch-based reclamation, which were omitted for simplicity in benchmarking.
+
+The flat combining implementations rely on non-atomic flags in some places. This is safe on x86 but may break on weaker memory models such as ARM and should be fixed using atomics.
+
+The elimination stack uses a fixed-size elimination array with random selection. Different sizes or selection strategies may improve performance, but in the current configuration the overhead outweighs the benefits.
 
 ---
 
 ## Conclusions
 
-For this benchmark workload:
-- **Treiber stack** is the clear winner for stacks (best scaling, consistent performance)
-- **M&S queue** is competitive for queues but variable depending on thread count
-- **SGL implementations** are simpler and adequate at low thread counts
-- **Elimination and FC** don't provide benefits in this workload
+For this workload, the Treiber stack provides the best overall performance and scalability among stack implementations. The Michael & Scott queue is competitive but shows variability depending on thread count. Single global lock implementations are simple and effective at low contention. Elimination and flat combining techniques do not provide benefits for this benchmark.
 
-The perf analysis shows lock-free algorithms achieve parallelism and avoid blocking, but are fundamentally limited by memory system performance rather than computation. The CPU spends 70-87% of time waiting for memory due to atomic operations causing cache coherency traffic.
-
-For production use, the memory leak issue must be addressed with a proper reclamation scheme like hazard pointers.
-```
+The `perf` analysis shows that lock-free algorithms achieve high parallelism and avoid blocking but are fundamentally limited by memory system performance rather than computation. For production systems, safe memory reclamation is essential.
