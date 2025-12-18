@@ -63,7 +63,7 @@ Builds all source files using `-std=c++17 -pthread -O2 -Wall` and produces the `
 make clean
 make
 ````
-
+```bash
 Requires GCC 7+ or Clang 5+ with C++17 support and the pthread library.
 Tested on Ubuntu 24.04.
 
@@ -220,4 +220,5 @@ The elimination stack uses a fixed-size elimination array with random selection.
 For this workload, the Treiber stack provides the best overall performance and scalability among stack implementations. The Michael & Scott queue is competitive but shows variability depending on thread count. Single global lock implementations are simple and effective at low contention. Elimination and flat combining techniques do not provide benefits for this benchmark.
 
 The `perf` analysis shows that lock-free algorithms achieve high parallelism and avoid blocking but are fundamentally limited by memory system performance rather than computation. For production systems, safe memory reclamation is essential.
+
 
