@@ -1,4 +1,4 @@
-# Concurrent Containers – Final Project
+# Project : Concurrent Containers 
 
 **Author:** Prudhvi Raj Belide
 
@@ -151,4 +151,5 @@ The elimination stack uses a fixed-size elimination array with random slot selec
 For this workload, the Treiber stack provides the best overall performance and scalability among stack implementations. The Michael & Scott queue is competitive but shows variability depending on thread count. Single global lock implementations are simple and effective at low contention, while elimination and flat combining do not provide benefits for this benchmark.
 
 The `perf` analysis shows that lock-free algorithms achieve high parallelism and avoid blocking, but are fundamentally limited by memory system performance rather than computation. For production use, safe memory reclamation is essential.
+
 
